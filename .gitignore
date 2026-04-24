@@ -1,0 +1,14 @@
+dataset/
+*.csv
+*.tsv
+*.zip
+*.rar
+*.7z
+*.pkl
+*.pickle
+*.joblib
+*.npy
+*.npz
+.venv/
+__pycache__/
+*.pyc

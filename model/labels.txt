@@ -1,0 +1,5 @@
+wheat_healthy
+wheat_loosesmut
+wheat_powderymildew
+wheat_rust
+wheat_septoria
