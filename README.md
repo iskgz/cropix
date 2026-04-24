@@ -1,23 +1,83 @@
-# Cropix - Bugday Hastalik Tespit Projesi (Goruntu Isleme + NLP)
+# Cropix
 
-Bu proje, bugday bitkisindeki hastalik belirtilerini iki farkli yaklasimla analiz eder.
+Cropix is a wheat disease analysis project that combines computer vision and NLP to support diagnosis from two different inputs:
 
-- Goruntu isleme (CNN / MobileNetV2): Yaprak veya basak goruntusunden hastalik tahmini yapar.
-- NLP (metin analizi): Kullanicinin yazdigi belirti aciklamasindan hastalik tahmini yapar.
+- an image of the plant
+- a text description of symptoms
 
-Proje, hem goruntu tabanli hem metin tabanli tani adimlarini ayni calismada birlestirmeyi hedefler.
+The goal is to compare the two signals, produce a final disease prediction, and keep the workflow simple enough to run and evaluate locally.
 
-## Proje Amaci
+## What the project does
 
-Bu calismanin amaci:
+- Trains an image classification model for wheat disease recognition
+- Trains an NLP classifier from symptom descriptions
+- Runs inference from either modality
+- Combines image and text predictions into a final decision
+- Exposes reusable scripts for training, prediction, and TFLite testing
 
-- Bugday hastaliklarini otomatik tespit etmek
-- Farkli veri tiplerini (gorsel + metin) birlikte kullanmak
-- Hastalik tespit surecini hizlandirmak ve karar destegi saglamak
+## Repository scope
 
-## Kapsanan Hastalik Siniflari
+This repository contains the application and model code required to reproduce the workflow.
 
-Model dosyalarinda gecen temel siniflar:
+The raw dataset is intentionally not included in the public repository.
+
+## Project structure
+
+```text
+cropix/
+├── main.py
+├── model/
+│   ├── train.py
+│   ├── predict.py
+│   ├── test_tflite.py
+│   └── model artifacts
+├── nlp/
+│   ├── train_nlp.py
+│   ├── predict_nlp.py
+│   ├── interactive_nlp.py
+│   └── NLP artifacts
+└── README.md
+```
+
+## Architecture
+
+### 1. Image pipeline
+
+The image pipeline focuses on supervised classification of wheat leaf or spike images.
+
+Typical flow:
+
+1. Load labeled images from the training dataset
+2. Preprocess the images
+3. Train a CNN-based classifier using transfer learning
+4. Export the trained model
+5. Run local inference with the saved model or TFLite version
+
+### 2. NLP pipeline
+
+The NLP pipeline works on symptom text entered by the user.
+
+Typical flow:
+
+1. Clean and normalize the symptom text
+2. Convert text into numerical features
+3. Train a text classifier
+4. Save the vectorizer and model
+5. Run inference on new symptom descriptions
+
+### 3. Decision fusion
+
+The final decision layer combines the image prediction and the NLP prediction.
+
+The intent is to:
+
+- keep the image model as the primary signal when a clear visual match exists
+- use NLP as a complementary signal when text is available
+- produce a final label with a confidence score that is easy to inspect
+
+## Main labels
+
+The project currently works with wheat-related disease classes such as:
 
 - wheat_healthy
 - wheat_loosesmut
@@ -25,149 +85,64 @@ Model dosyalarinda gecen temel siniflar:
 - wheat_rust
 - wheat_septoria
 
-## Proje Dizini
+## Installation
 
-```text
-cropix/
-├── dataset/
-├── model/
-│   ├── train.py
-│   ├── predict.py
-│   ├── test_tflite.py
-│   ├── labels.json
-│   ├── model.tflite
-│   └── (egitilmis .h5/.keras dosyalari)
-├── nlp/
-│   ├── train_nlp.py
-│   ├── predict_nlp.py
-│   ├── interactive_nlp.py
-│   ├── big_dataset.csv
-│   └── (kaydedilmis .pkl modeller)
-├── main.py
-└── README.md
-```
-
-## Kullanilan Yontemler
-
-### 1) Goruntu Isleme Tarafi (CNN)
-
-- `model/train.py`
-  - `dataset/train` altindaki goruntulerden egitim yapar
-  - Transfer learning olarak `MobileNetV2` kullanir
-  - Dengesiz siniflar icin `class_weight` uygular
-  - En iyi modeli kaydetme, erken durdurma ve ogrenme hizi azaltma callbackleri vardir
-
-- `model/predict.py`
-  - Egitilmis modeli yukler
-  - Verilen bir gorsel icin en yuksek olasilikli siniflari (`top-k`) verir
-
-- `model/test_tflite.py`
-  - `model.tflite` dosyasi ile TFLite inferans testi yapar
-
-### 2) NLP Tarafi
-
-- `nlp/train_nlp.py`
-  - `big_dataset.csv` verisini temizler ve on isleme uygular
-  - TF-IDF (`ngram_range=(1,3)`) + Logistic Regression modeli egitir
-  - `nlp_model.pkl` ve `vectorizer.pkl` dosyalarini kaydeder
-
-- `nlp/predict_nlp.py`
-  - Kayitli NLP modelini yukler
-  - Kullanicidan gelen metni normalize edip sinif ve guven skoru uretir
-  - Gerekirse ayirt edici sorularla puanlari guncelleyebilecek yardimci fonksiyonlar icerir
-
-- `nlp/interactive_nlp.py`
-  - Kullaniciya soru-cevap akisiyla ek belirti bilgisi toplar
-  - Ilk tahmini ve guncellenmis tahmini ekrana yazar
-
-### 3) Birlesik Akis
-
-- `main.py`
-  - Once goruntu tahmini alir
-  - Sonra gerekirse NLP adimina gecer
-  - Iki farkli guven degerini agirlikli birlestirerek final karar mantigi uygular
-
-## Kurulum
-
-Asagidaki adimlar Ubuntu/WSL terminali icindir.
-
-1. Proje klasorune gec:
+This project is designed for Python 3.12+ and a local development environment.
 
 ```bash
-cd /home/projeGÜNCEL/cropix
-```
-
-2. (Opsiyonel ama onerilir) Sanal ortam olustur:
-
-```bash
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
-```
-
-3. Gerekli paketleri yukle:
-
-```bash
 pip install --upgrade pip
 pip install tensorflow numpy pandas scikit-learn joblib opencv-python
 ```
 
-## Calistirma Adimlari
+## Training
 
-### A) NLP Modeli Egitmek
-
-```bash
-cd /home/projeGÜNCEL/cropix/nlp
-python3 train_nlp.py
-```
-
-Beklenen cikti:
-
-- Siniflandirma raporu (`classification_report`)
-- `nlp_model.pkl` ve `vectorizer.pkl` dosyalari
-
-### B) NLP Tahmin / Etkilesimli Test
+### Train the NLP model
 
 ```bash
-cd /home/projeGÜNCEL/cropix/nlp
-python3 interactive_nlp.py
+cd nlp
+python train_nlp.py
 ```
 
-### C) Goruntu Modeli Egitmek
+### Train the image model
 
 ```bash
-cd /home/eda/projeGÜNCEL/cropix/model
-python3 train.py
+cd model
+python train.py
 ```
 
-### D) Goruntuden Tahmin Almak
+## Inference
+
+### NLP inference
 
 ```bash
-cd /home/projeGÜNCEL/cropix/model
-python3 predict.py ../dataset/test_images/wheat_rust/hububatta-kullenme-kok-bogazi-ve-sari-pas-alarmi.jpg
+cd nlp
+python predict_nlp.py
 ```
 
-### E) TFLite Testi
+### Image inference
 
 ```bash
-cd /home/eda/projeGÜNCEL/cropix/model
-python3 test_tflite.py
+cd model
+python predict.py <image_path>
 ```
 
-## Veri Hakkinda Not
+### TFLite validation
 
-- `dataset/` klasoru goruntu verisini barindirir
-- `nlp/big_dataset.csv` metin tabanli belirti verilerini icerir
-- Buyuk model dosyalari (`.h5`, `.keras`, `.tflite`, `.pkl`) depoda bulunmaktadir
+```bash
+cd model
+python test_tflite.py
+```
 
-## Gelistirme Onerileri
+## Data policy
 
-- `requirements.txt` eklenmesi
-- Egitim/deney sonuclarinin tek raporda toplanmasi (accuracy, f1, confusion matrix)
-- `main.py` icin daha net bir demo akisi ve ornek girdi dosyasi tanimi
-- Veri seti surumleme ve model versiyonlama
+- Raw datasets are not published here
+- Large local training exports should stay out of version control
+- Only the code and model artifacts needed to run the project should be committed
 
-## GitHub
+## Notes
 
-Bu proje GitHub uzerinden paylasilmaktadir:
-
-- Repo: https://github.com/iskgz/cropix
+- If you are evaluating the project, start with `main.py`
+- If you want to inspect model behavior, start with `model/train.py` and `nlp/train_nlp.py`
+- If you want to test the final inference flow, use the prediction scripts in `model/` and `nlp/`
